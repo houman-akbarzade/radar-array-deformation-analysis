@@ -9,3 +9,5 @@ __pycache__/
 *.out
 *.synctex.gz
 .DS_Store
+output_matlab/
+output_python/
