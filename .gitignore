@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+*.asv
+*.autosave
+*.aux
+*.log
+*.out
+*.synctex.gz
+.DS_Store
