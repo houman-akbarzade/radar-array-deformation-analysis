@@ -14,19 +14,27 @@ C0 = 299_792_458.0
 
 @dataclass(frozen=True)
 class Config:
-    frequency_hz: float = 2.4e9
+    frequency_hz: float = 5.8e9
+    frequency_min_hz: float = 5.2e9
+    frequency_max_hz: float = 5.8e9
+    phase_center_power: float = 1.0
+    bending_shape: str = 'uniform'
+    mechanical_model: str = 'base'
+    wind_az_deg: float = 0.0
+    height_gradient: float = 0.0
+    total_column_count: int = 60
     panel_count: int = 20
-    row_count: int = 12
+    row_count: int = 16
     az_spacing_wavelength: float = 0.52
     vertical_spacing_wavelength: float = 0.48
     seed: int = 2026
     trials: int = 100
-    panel_correlation: float = 0.30
-    within_panel_correlation: float = 0.96
-    displacement_std_wavelength: float = 0.012
+    panel_correlation: float = 0.35
+    within_panel_correlation: float = 0.995
+    displacement_std_wavelength: float = 0.02
     mean_displacement_wavelength: float = 0.0
-    radial_coupling: float = 0.0002
-    vertical_coupling: float = 0.015
+    radial_coupling: float = 0.0001
+    vertical_coupling: float = 0.02
     steer_az_deg: float = 0.0
     target_az_deg: float = 1.5
     beam_el_deg: float = 3.0
@@ -36,12 +44,12 @@ class Config:
 
 def geometry(c):
     """Equal arc spacing, with radius inferred from wavelength and full circumference."""
-    assert c.panel_count >= 4 and c.panel_count % 2 == 0 and c.row_count >= 3
+    assert c.total_column_count >= c.panel_count >= 4 and c.panel_count % 2 == 0 and c.row_count >= 3
     lam = C0 / c.frequency_hz
     arc_spacing = c.az_spacing_wavelength * lam
-    radius = c.panel_count * arc_spacing / (2 * np.pi)
+    radius = c.total_column_count * arc_spacing / (2 * np.pi)
     dz = c.vertical_spacing_wavelength * lam
-    phi_panels = (np.arange(c.panel_count) - (c.panel_count-1)/2) * (2*np.pi/c.panel_count)
+    phi_panels = (np.arange(c.panel_count) - (c.panel_count-1)/2) * (2*np.pi/c.total_column_count)
     panel = np.tile(np.arange(c.panel_count), c.row_count)
     row = np.repeat(np.arange(c.row_count), c.panel_count)
     phi = phi_panels[panel]
@@ -57,7 +65,19 @@ def displacement(c, g, rng):
     eigval, eigvec = np.linalg.eigh(K)
     shared = eigvec @ (np.sqrt(np.maximum(eigval, 0)) * rng.standard_normal(n))
     q = np.sqrt(c.within_panel_correlation)*shared[g['panel']] + np.sqrt(1-c.within_panel_correlation)*rng.standard_normal(len(g['panel']))
-    s = g['lam']*(c.mean_displacement_wavelength + c.displacement_std_wavelength*q)
+    xi = ((c.frequency_hz-c.frequency_min_hz)/(c.frequency_max_hz-c.frequency_min_hz))**c.phase_center_power
+    if not 0 <= xi <= 1: raise ValueError('Frequency outside modeled band')
+    if c.bending_shape == 'uniform':
+        gain = xi**2*(6-4*xi+xi**2)/3
+    elif c.bending_shape == 'tip_force':
+        gain = xi**2*(3-xi)/2
+    else: raise ValueError('Unknown bending shape')
+    scale = np.ones(len(q))
+    if c.mechanical_model == 'wind_parametric':
+        scale = np.sin(np.deg2rad(c.wind_az_deg)-g['phi'])*(1+c.height_gradient*g['xyz'][:,2]/max(abs(g['xyz'][:,2])))
+    elif c.mechanical_model != 'base': raise ValueError('Unknown mechanical model')
+    # Tip statistics use the upper-band wavelength; effective motion follows bending gain.
+    s = gain*scale*(C0/c.frequency_max_hz)*(c.mean_displacement_wavelength + c.displacement_std_wavelength*q)
     r = c.radial_coupling*s
     z = c.vertical_coupling*s
     phi = g['phi']
@@ -129,7 +149,7 @@ def peak(c, xyz, w):
     return float(opt.x), -float(opt.fun)
 
 def run(c=Config()):
-    assert c.frequency_hz>0 and c.trials>=1
+    assert c.frequency_min_hz < c.frequency_max_hz and c.frequency_min_hz <= c.frequency_hz <= c.frequency_max_hz and c.trials>=1
     assert 0<=c.panel_correlation<=1 and 0<=c.within_panel_correlation<=1
     g = geometry(c)
     nominal = g['xyz']
