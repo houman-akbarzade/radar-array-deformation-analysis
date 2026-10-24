@@ -15,12 +15,13 @@ Python 3.10+ with NumPy, SciPy, and Matplotlib:
 ```bash
 python -m pip install -r python/requirements.txt
 python python/array_study.py --mode baseline --trials 500
+python python/array_study.py --mode baseline --trials 500 --validate-generator
 python python/array_study.py --mode frequency --trials 500
 python python/array_study.py --mode sensitivity --trials 500
 python python/array_study.py --mode study --trials 500
 ```
 
-`--mode all` runs every analysis and can take a long time. Results and PNG figures appear in `output_python/`. Each Monte Carlo realization samples a new mechanical field. Sweeps reuse the seed at each point to allow paired comparison. The Python and MATLAB random generators differ, so their individual realizations and summary numbers are not expected to be bit-for-bit identical.
+`--mode all` runs every analysis and can take a long time. Results and PNG figures appear in `output_python/`. Generator validation uses 10,000 realizations unless omitted. Each Monte Carlo realization samples a new mechanical field. Sweeps reuse the seed at each point to allow paired comparison. The Python and MATLAB random generators differ, so their individual realizations and summary numbers are not expected to be bit-for-bit identical.
 
 In MATLAB R2018b or newer, add `matlab/` to the path, then:
 
@@ -32,7 +33,7 @@ RunArrayStudy('study', c);
 RunArrayStudy('all', c);
 ```
 
-The MATLAB `baseline` mode also runs the frequency study when `c.run_frequency` is true; Python exposes that study as its own mode. MATLAB additionally writes `.mat` and `.fig` files. Figure names and plotting detail differ, while the geometry, mechanical field, four scenarios, calibration rule, and error definitions follow the same model. The MATLAB rewrite has not been executed in a MATLAB runtime here; Python was run with a small smoke sample.
+The MATLAB `baseline` mode also runs the frequency study when `c.run_frequency` is true; Python exposes that study as its own mode. MATLAB additionally writes `.mat` and `.fig` files and stores the full point data during studies. Python writes CSV summaries and PNG figures. Figure names and plotting detail differ, while the geometry, mechanical field, four scenarios, calibration rule, and error definitions follow the same model. The MATLAB rewrite has not been executed in a MATLAB runtime here; Python was run with a small smoke sample and its 10,000-realization generator check passed.
 
 ## Publication boundary
 
