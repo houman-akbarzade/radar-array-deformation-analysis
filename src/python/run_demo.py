@@ -46,9 +46,9 @@ def geometry(c):
     """Equal arc spacing, with radius inferred from wavelength and full circumference."""
     assert c.total_column_count >= c.panel_count >= 4 and c.panel_count % 2 == 0 and c.row_count >= 3
     lam = C0 / c.frequency_hz
-    arc_spacing = c.az_spacing_wavelength * lam
+    arc_spacing = c.az_spacing_wavelength * (C0 / c.frequency_max_hz)
     radius = c.total_column_count * arc_spacing / (2 * np.pi)
-    dz = c.vertical_spacing_wavelength * lam
+    dz = c.vertical_spacing_wavelength * (C0 / c.frequency_max_hz)
     phi_panels = (np.arange(c.panel_count) - (c.panel_count-1)/2) * (2*np.pi/c.total_column_count)
     panel = np.tile(np.arange(c.panel_count), c.row_count)
     row = np.repeat(np.arange(c.row_count), c.panel_count)
