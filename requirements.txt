@@ -1,2 +1,2 @@
-# Python dependencies will be pinned when an approved Python implementation is added.
-# The original analysis may use MATLAB; no Python runtime dependency is assumed yet.
+numpy>=1.26,<3
+scipy>=1.11,<2
