@@ -35,6 +35,18 @@ RunArrayStudy('all', c);
 
 The MATLAB `baseline` mode also runs the frequency study when `c.run_frequency` is true; Python exposes that study as its own mode. MATLAB additionally writes `.mat` and `.fig` files and stores the full point data during studies. Python writes CSV summaries and PNG figures. Figure names and plotting detail differ, while the geometry, mechanical field, four scenarios, calibration rule, and error definitions follow the same model. The MATLAB rewrite has not been executed in a MATLAB runtime here; Python was run with a small smoke sample and its 10,000-realization generator check passed.
 
+## Portfolio figure
+
+![Simulated cylindrical array deformation and monopulse results](figures/array_deformation_linkedin.png)
+
+The [Python figure generator](figures/make_linkedin_figure_v2.py) combines a schematic view of rectangular panels fixed to the cylinder at one edge with **computed** sum and difference cuts, the monopulse ratio, and an example angle estimate. The mechanical displacement in the 3D view is enlarged 30× for visibility; the plotted RF responses use the physical model displacement. The figure uses the committed [scenario summary](figures/scenario_summary.csv) and recomputes the illustrated response from the Python model:
+
+```bash
+python figures/make_linkedin_figure_v2.py --summary figures/scenario_summary.csv
+```
+
+For the illustrated 5.8 GHz, 500-realization case, the simulated beam-peak shift RMSE is **0.085°**, and the monopulse angle-error RMSE is **0.084°**. These are model outputs, not hardware measurements or structural validation. The intended-system assessment described alongside this portfolio example is a team-reported conclusion; its acceptance criteria are not included here.
+
 ## Publication boundary
 
-The settings are invented for demonstration, including operating band, element count, cylinder dimensions, target angles, active sector, seed and sweep levels. Do not add source project reports, original parameter tables, measured plots, company identifiers, equipment identifiers, internal requirements, or comments about the original values to this repository. Before making the repository public, review the repository history as well as its current files; deleting a file does not remove it from commit history.
+The settings are invented for demonstration, including operating band, element count, cylinder dimensions, target angles, active sector, seed and sweep levels. Do not add source project reports, original parameter tables, measured plots, company identifiers, equipment identifiers, internal requirements, or comments about the original values to this repository. When publishing or reusing the repository, review its history as well as its current files; deleting a file does not remove it from commit history.
