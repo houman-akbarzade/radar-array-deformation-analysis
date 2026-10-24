@@ -1,11 +1,13 @@
 function records = run_demo()
 % Synthetic public-safe cylindrical sector model; not operational radar data.
-c.frequency_hz=2.4e9; c.c0=299792458; c.panel_count=20; c.row_count=12;
+c.frequency_hz=5.8e9; c.frequency_min_hz=5.2e9; c.frequency_max_hz=5.8e9;
+c.phase_center_power=1; c.bending_shape='uniform'; c.mechanical_model='base';
+c.wind_az_deg=0; c.height_gradient=0; c.c0=299792458; c.total_column_count=60; c.panel_count=20; c.row_count=16;
 c.az_spacing_wavelength=0.52; c.vertical_spacing_wavelength=0.48;
-c.seed=2026; c.trials=100; c.panel_correlation=0.30;
-c.within_panel_correlation=0.96; c.displacement_std_wavelength=0.012;
-c.mean_displacement_wavelength=0; c.radial_coupling=0.0002;
-c.vertical_coupling=0.015; c.steer_az_deg=0; c.target_az_deg=1.5;
+c.seed=2026; c.trials=100; c.panel_correlation=0.35;
+c.within_panel_correlation=0.995; c.displacement_std_wavelength=0.02;
+c.mean_displacement_wavelength=0; c.radial_coupling=0.0001;
+c.vertical_coupling=0.02; c.steer_az_deg=0; c.target_az_deg=1.5;
 c.beam_el_deg=3; c.analog_el_deg=0; c.calibration_half_span_deg=5;
 c.peak_half_span_deg=6;
 g=geometry(c); rng(c.seed,'twister');
@@ -39,9 +41,9 @@ end
 function g=geometry(c)
 assert(mod(c.panel_count,2)==0 && c.panel_count>=4 && c.row_count>=3);
 g.lambda=c.c0/c.frequency_hz;
-g.radius=c.panel_count*c.az_spacing_wavelength*g.lambda/(2*pi);
+g.radius=c.total_column_count*c.az_spacing_wavelength*g.lambda/(2*pi);
 g.dz=c.vertical_spacing_wavelength*g.lambda;
-ph=((0:c.panel_count-1)'-(c.panel_count-1)/2)*(2*pi/c.panel_count);
+ph=((0:c.panel_count-1)'-(c.panel_count-1)/2)*(2*pi/c.total_column_count);
 g.panel=repmat((1:c.panel_count)',c.row_count,1);
 g.row=kron((1:c.row_count)',ones(c.panel_count,1));
 g.phi=ph(g.panel); z=(g.row-(c.row_count+1)/2)*g.dz;
@@ -54,7 +56,19 @@ K=c.panel_correlation.^abs(idx-idx');
 [V,D]=eig((K+K')/2);
 shared=V*(sqrt(max(diag(D),0)).*randn(n,1));
 q=sqrt(c.within_panel_correlation)*shared(g.panel)+sqrt(1-c.within_panel_correlation)*randn(numel(g.panel),1);
-s=g.lambda*(c.mean_displacement_wavelength+c.displacement_std_wavelength*q);
+xi=((c.frequency_hz-c.frequency_min_hz)/(c.frequency_max_hz-c.frequency_min_hz))^c.phase_center_power;
+assert(xi>=0 && xi<=1,'Frequency outside modeled band');
+if strcmp(c.bending_shape,'uniform')
+    gain=xi^2*(6-4*xi+xi^2)/3;
+elseif strcmp(c.bending_shape,'tip_force')
+    gain=xi^2*(3-xi)/2;
+else, error('Unknown bending shape'); end
+scale=ones(size(q));
+if strcmp(c.mechanical_model,'wind_parametric')
+    scale=sin(deg2rad(c.wind_az_deg)-g.phi).*(1+c.height_gradient*g.xyz(:,3)/max(abs(g.xyz(:,3))));
+elseif ~strcmp(c.mechanical_model,'base'), error('Unknown mechanical model'); end
+% Tip statistics scale with upper-band wavelength, not instantaneous frequency.
+s=gain*scale.*(c.c0/c.frequency_max_hz)*(c.mean_displacement_wavelength+c.displacement_std_wavelength*q);
 r=c.radial_coupling*s; z=c.vertical_coupling*s;
 delta=[-sin(g.phi).*s+cos(g.phi).*r,cos(g.phi).*s+sin(g.phi).*r,z];
 end
