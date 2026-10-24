@@ -41,8 +41,8 @@ end
 function g=geometry(c)
 assert(mod(c.panel_count,2)==0 && c.panel_count>=4 && c.row_count>=3);
 g.lambda=c.c0/c.frequency_hz;
-g.radius=c.total_column_count*c.az_spacing_wavelength*g.lambda/(2*pi);
-g.dz=c.vertical_spacing_wavelength*g.lambda;
+g.radius=c.total_column_count*c.az_spacing_wavelength*(c.c0/c.frequency_max_hz)/(2*pi);
+g.dz=c.vertical_spacing_wavelength*(c.c0/c.frequency_max_hz);
 ph=((0:c.panel_count-1)'-(c.panel_count-1)/2)*(2*pi/c.total_column_count);
 g.panel=repmat((1:c.panel_count)',c.row_count,1);
 g.row=kron((1:c.row_count)',ones(c.panel_count,1));
