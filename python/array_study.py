@@ -239,11 +239,14 @@ def summary_rows(result):
     for j,name in enumerate(("A_ideal_single","B_nominal_stack","C_deformed_single","D_deformed_stack")):
         for metric,key in (("beam_deg","beam"),("monopulse_deg","mono")):
             v=result[key][:,j]; x=v[np.isfinite(v)]
-            rows.append(dict(scenario=name,metric=metric,bias=np.mean(x) if len(x) else np.nan,
+            ci=1.96*np.std(x,ddof=1)/np.sqrt(len(x)) if len(x)>1 else np.nan
+            bias=np.mean(x) if len(x) else np.nan
+            rows.append(dict(scenario=name,metric=metric,bias=bias,
                              std=np.std(x) if len(x) else np.nan,
                              rmse=np.sqrt(np.mean(x*x)) if len(x) else np.nan,
                              p025=np.percentile(x,2.5) if len(x) else np.nan,
                              p975=np.percentile(x,97.5) if len(x) else np.nan,
+                             mean_ci_low=bias-ci,mean_ci_high=bias+ci,
                              invalid_count=len(v)-len(x)))
     return rows
 
@@ -316,6 +319,34 @@ def frequency_study(c,out):
             ax.plot([r["frequency_hz"]/1e9 for r in subset],[r["rmse"] for r in subset],"o-",label=scenario[0])
         ax.set(xlabel="Frequency (GHz)",ylabel=metric+" RMSE");ax.legend()
     fig.tight_layout();fig.savefig(out/"12_frequency_error_comparison.png",dpi=150);plt.close(fig)
+    fig,axs=plt.subplots(2,2,figsize=(9,7))
+    for ax,key,scale,label in zip(axs.flat,
+            ("mean_tangential_m","mean_element_sd_m","mean_azimuth_shift_deg","mean_element_azimuth_sd_deg"),
+            (1e3,1e3,1,1),
+            ("Mean tangential (mm)","Mean per-element SD (mm)","Mean azimuth shift (deg)","Mean azimuth SD (deg)")):
+        ax.plot([r["frequency_hz"]/1e9 for r in displacement],[scale*r[key] for r in displacement],"o-")
+        ax.set(xlabel="Frequency (GHz)",ylabel=label)
+    fig.tight_layout();fig.savefig(out/"11_frequency_displacement_statistics.png",dpi=150);plt.close(fig)
+
+
+def validate_generator(c,out,count=10000):
+    # At the upper band endpoint the mechanical gain is one.
+    v=replace(c,frequency=c.f_high,mechanical_model="base",mean_tip_wavelengths=0,
+              sigma_tip_wavelengths=c.sigma_tip_wavelengths or .02)
+    g=geometry(v);rng=np.random.default_rng(c.seed+1)
+    observations=np.stack([deformation(v,g,rng)["tangential"] for _ in range(count)],axis=1)
+    empirical=np.corrcoef(observations)
+    expected=v.rho_within*panel_correlation(v,g)[np.ix_(g["panel"],g["panel"])]
+    expected+=(1-v.rho_within)*np.eye(len(g["panel"]))
+    sd_ratio=np.std(observations,axis=1).mean()/(v.sigma_tip_wavelengths*v.reference_wavelength)
+    max_error=np.max(np.abs(empirical-expected))
+    print(f"Generator SD ratio {sd_ratio:.5f}; maximum correlation error {max_error:.5f}")
+    if abs(sd_ratio-1)>=.04 or max_error>=.08:
+        raise AssertionError("Displacement generator validation failed")
+    fig,axs=plt.subplots(1,2,figsize=(9,4))
+    for ax,matrix,title in zip(axs,(expected,empirical),("Expected correlation","Empirical correlation")):
+        image=ax.imshow(matrix,vmin=-1,vmax=1);ax.set_title(title);fig.colorbar(image,ax=ax)
+    fig.tight_layout();fig.savefig(out/"01_generator_validation.png",dpi=150);plt.close(fig)
 
 
 def parameter_sweep(c,out,study=False):
@@ -378,9 +409,11 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode",choices=("baseline","frequency","sensitivity","study","all"),default="baseline")
     parser.add_argument("--trials",type=int,default=500)
+    parser.add_argument("--validate-generator",action="store_true")
     parser.add_argument("--output",type=Path,default=Path("output_python"))
     args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
     c=Config(trials=args.trials)
+    if args.validate_generator: validate_generator(c,args.output)
     if args.mode in ("baseline","all"):
         o=monte_carlo(c);write_csv(args.output/"scenario_summary.csv",summary_rows(o))
         plot_baseline(o,args.output)
