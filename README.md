@@ -47,6 +47,10 @@ python figures/make_linkedin_figure_v2.py --summary figures/scenario_summary.csv
 
 For the illustrated 5.8 GHz, 500-realization case, the simulated beam-peak shift RMSE is **0.085°**, and the monopulse angle-error RMSE is **0.084°**. These are model outputs, not hardware measurements or structural validation. The intended-system assessment described alongside this portfolio example is a team-reported conclusion; its acceptance criteria are not included here.
 
+## Technical report
+
+The [English scientific report](report/array_deformation_report.pdf) describes the public geometry, correlated mechanical displacement model, receive architecture, monopulse calibration, Monte Carlo results, and validation limits. Its [LaTeX source and build instructions](report/) use the computed figures and CSV summaries in [public_results/](public_results/).
+
 ## Publication boundary
 
 The settings are invented for demonstration, including operating band, element count, cylinder dimensions, target angles, active sector, seed and sweep levels. Do not add source project reports, original parameter tables, measured plots, company identifiers, equipment identifiers, internal requirements, or comments about the original values to this repository. When publishing or reusing the repository, review its history as well as its current files; deleting a file does not remove it from commit history.
